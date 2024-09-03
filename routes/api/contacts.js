@@ -1,5 +1,7 @@
 const express = require('express');
 const Joi = require('joi');
+const Contact = require('../../models/contacts'); //to musi być?
+
 const {
   listContacts,
   getContactById,

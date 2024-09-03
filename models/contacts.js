@@ -34,7 +34,13 @@ const addContact = async ({ name, email, phone }) => {
 };
 
 const removeContact = async contactId => {
-  return await Contact.findByIdAndRemove(contactId);
+  try {
+    const result = await Contact.findByIdAndDelete(contactId);
+    return result;
+  } catch (error) {
+    console.error('Error removing contact:', error);
+    throw error;
+  }
 };
 
 const updateContact = async (contactId, updates) => {
