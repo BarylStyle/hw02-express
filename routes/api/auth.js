@@ -4,8 +4,18 @@ const jwt = require('jsonwebtoken');
 const { SECRET_KEY } = process.env;
 const User = require('../../models/user');
 const auth = require('../../middlewares/auth');
+const gravatar = require('gravatar');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs/promises');
+const jimp = require('jimp');
 
 const router = express.Router();
+
+const tmpDir = path.join(__dirname, '../../tmp');
+const avatarsDir = path.join(__dirname, '../../public/avatars');
+
+const upload = multer({ dest: tmpDir });
 
 router.post('/signup', async (req, res, next) => {
   try {
@@ -18,15 +28,19 @@ router.post('/signup', async (req, res, next) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    const avatarURL = gravatar.url(email, { s: '250', d: 'retro' }, true);
+
     const newUser = await User.create({
       email,
       password: hashedPassword,
+      avatarURL,
     });
 
     res.status(201).json({
       user: {
         email: newUser.email,
         subscription: newUser.subscription,
+        avatarURL: newUser.avatarURL,
       },
     });
   } catch (error) {
@@ -96,5 +110,31 @@ router.get('/current', auth, async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
+
+router.patch(
+  '/avatars',
+  auth,
+  upload.single('avatar'),
+  async (req, res, next) => {
+    try {
+      const { path: tempPath, originalname } = req.file;
+      const ext = originalname.split('.').pop();
+      const newAvatarName = `${req.user._id}.${ext}`;
+      const newAvatarPath = path.join(avatarsDir, newAvatarName);
+
+      const image = await jimp.read(tempPath);
+      await image.resize(250, 250).writeAsync(newAvatarPath);
+
+      await fs.unlink(tempPath);
+
+      const avatarURL = `/avatars/${newAvatarName}`;
+      await User.findByIdAndUpdate(req.user._id, { avatarURL });
+
+      res.status(200).json({ avatarURL });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 
 module.exports = router;

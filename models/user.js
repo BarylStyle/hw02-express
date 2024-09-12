@@ -1,4 +1,5 @@
 const { Schema, model } = require('mongoose');
+const gravatar = require('gravatar');
 
 const userSchema = new Schema({
   email: {
@@ -14,6 +15,9 @@ const userSchema = new Schema({
     type: String,
     enum: ['starter', 'pro', 'business'],
     default: 'starter',
+  },
+  avatarURL: {
+    type: String,
   },
   token: {
     type: String,
