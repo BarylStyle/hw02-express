@@ -1,14 +1,16 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { SECRET_KEY } = process.env;
+// const { SECRET_KEY } = process.env;
 const User = require('../../models/user');
 const auth = require('../../middlewares/auth');
-const gravatar = require('gravatar');
+const sendVerificationEmail = require('../../services/emailService');
+// const gravatar = require('gravatar');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs/promises');
 const jimp = require('jimp');
+const { v4: uuidv4 } = require('uuid');
 
 const router = express.Router();
 
@@ -27,20 +29,21 @@ router.post('/signup', async (req, res, next) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-
-    const avatarURL = gravatar.url(email, { s: '250', d: 'retro' }, true);
+    const verificationToken = uuidv4(); // Generujemy unikalny token
 
     const newUser = await User.create({
       email,
       password: hashedPassword,
-      avatarURL,
+      verificationToken, // Przypisujemy token do nowego użytkownika
     });
+
+    // Wysyłamy e-mail z linkiem do weryfikacji
+    await sendVerificationEmail(email, verificationToken);
 
     res.status(201).json({
       user: {
         email: newUser.email,
         subscription: newUser.subscription,
-        avatarURL: newUser.avatarURL,
       },
     });
   } catch (error) {
@@ -48,7 +51,7 @@ router.post('/signup', async (req, res, next) => {
   }
 });
 
-router.post('/login', async (req, res) => {
+router.post('/login', async (req, res, next) => {
   const { email, password } = req.body;
 
   try {
@@ -58,10 +61,13 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ message: 'Email or password is wrong' });
     }
 
+    if (!user.verify) {
+      return res.status(401).json({ message: 'Email not verified' });
+    }
+
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
       expiresIn: '1h',
     });
-
     user.token = token;
     await user.save();
 
@@ -136,5 +142,53 @@ router.patch(
     }
   }
 );
+
+router.get('/verify/:verificationToken', async (req, res, next) => {
+  try {
+    const { verificationToken } = req.params;
+    const user = await User.findOne({ verificationToken });
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    user.verificationToken = null;
+    user.verify = true;
+    await user.save();
+
+    res.status(200).json({ message: 'Verification successful' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/verify', async (req, res, next) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ message: 'missing required field email' });
+  }
+
+  try {
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (user.verify) {
+      return res
+        .status(400)
+        .json({ message: 'Verification has already been passed' });
+    }
+
+    // Wysyłamy ponownie e-mail z tokenem
+    await sendVerificationEmail(email, user.verificationToken);
+
+    res.status(200).json({ message: 'Verification email sent' });
+  } catch (error) {
+    next(error);
+  }
+});
 
 module.exports = router;
