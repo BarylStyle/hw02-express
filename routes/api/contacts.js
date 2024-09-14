@@ -26,10 +26,6 @@ const updateSchema = Joi.object({
   phone: Joi.string(),
 }).or('name', 'email', 'phone');
 
-const favoriteSchema = Joi.object({
-  favorite: Joi.boolean().required(),
-});
-
 router.get('/', async (req, res, next) => {
   try {
     const userId = req.user._id;

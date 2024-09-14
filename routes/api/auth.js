@@ -1,11 +1,9 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-// const { SECRET_KEY } = process.env;
 const User = require('../../models/user');
 const auth = require('../../middlewares/auth');
 const sendVerificationEmail = require('../../services/emailService');
-// const gravatar = require('gravatar');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs/promises');
@@ -29,20 +27,24 @@ router.post('/signup', async (req, res, next) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+
     const verificationToken = uuidv4();
 
     const newUser = await User.create({
       email,
       password: hashedPassword,
       verificationToken,
+      verify: false,
     });
 
-    await sendVerificationEmail(email, verificationToken);
+    console.log('Nowy użytkownik utworzony:', newUser);
+    console.log('Verification token:', verificationToken);
 
     res.status(201).json({
       user: {
         email: newUser.email,
         subscription: newUser.subscription,
+        verificationToken: verificationToken,
       },
     });
   } catch (error) {
@@ -137,6 +139,9 @@ router.patch(
 
       res.status(200).json({ avatarURL });
     } catch (error) {
+      if (req.file) {
+        await fs.unlink(req.file.path);
+      }
       next(error);
     }
   }
