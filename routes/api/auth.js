@@ -29,15 +29,14 @@ router.post('/signup', async (req, res, next) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const verificationToken = uuidv4(); // Generujemy unikalny token
+    const verificationToken = uuidv4();
 
     const newUser = await User.create({
       email,
       password: hashedPassword,
-      verificationToken, // Przypisujemy token do nowego użytkownika
+      verificationToken,
     });
 
-    // Wysyłamy e-mail z linkiem do weryfikacji
     await sendVerificationEmail(email, verificationToken);
 
     res.status(201).json({
@@ -182,7 +181,6 @@ router.post('/verify', async (req, res, next) => {
         .json({ message: 'Verification has already been passed' });
     }
 
-    // Wysyłamy ponownie e-mail z tokenem
     await sendVerificationEmail(email, user.verificationToken);
 
     res.status(200).json({ message: 'Verification email sent' });

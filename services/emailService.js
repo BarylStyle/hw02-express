@@ -1,6 +1,5 @@
 const mailgun = require('mailgun-js');
-const DOMAIN =
-  'https://app.mailgun.com/app/sending/domains/sandboxd67a69c68c834d8fb48b02c238b52ddc.mailgun.org/settings';
+const DOMAIN = 'postmaster@sandboxd67a69c68c834d8fb48b02c238b52ddc.mailgun.org';
 const mg = mailgun({ apiKey: process.env.MAILGUN_API_KEY, domain: DOMAIN });
 
 const sendVerificationEmail = async (email, token) => {
@@ -17,5 +16,3 @@ const sendVerificationEmail = async (email, token) => {
 };
 
 module.exports = sendVerificationEmail;
-
-// db96a88f32977cdebb9c5dd8dcba16e3-826eddfb-5ef5c3f9
